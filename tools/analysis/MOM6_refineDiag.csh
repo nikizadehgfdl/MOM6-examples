@@ -90,6 +90,8 @@ pwd
 ls -l
 
 set script_dir=${out_dir}/mom6/tools/analysis
+#gcp does not preserve executable permissions, make scripts executable
+chmod +x $script_dir/*.py
 
 set ocean_static_file = $yr1.ocean_static.nc
 if ( -e $yr1.ocean_static_no_mask_table.nc ) set ocean_static_file = $yr1.ocean_static_no_mask_table.nc
