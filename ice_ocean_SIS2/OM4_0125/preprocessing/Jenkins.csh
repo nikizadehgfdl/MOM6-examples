@@ -27,6 +27,8 @@ make mosaic_ocean/grid_spec.nc
 make mosaic_ocean/salt_restore.nc
 make mosaic_ocean/seawifs-clim-1997-2010.nc
 make mosaic_ocean/geothermal_davies2013_v1.nc
+make mosaic_ocean/runoff.daitren.iaf.v2011.02.10.nc
+make mosaic_ocean/runoff.daitren.clim.v2011.02.10.nc
 exit 0
 # Installing these files from archive is a workaround for the firewall on the GFDL PAN cluster
 cp -n /archive/gold/datasets/obs/tpxo7_atlas_netcdf.tar.Z .
