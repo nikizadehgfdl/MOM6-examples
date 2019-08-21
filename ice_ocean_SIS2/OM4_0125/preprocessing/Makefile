@@ -8,8 +8,7 @@
 # or
 #   make supergrid.nc
 #   make interpolated_topog.nc
-
-SHELL=tcsh -f
+INVERSE_RESOLUTION=8
 NP=8
 FRE_NCTOOLS = fre_nctools/tools
 
@@ -32,7 +31,7 @@ obs: WOA05_ptemp_salt_monthly.nc WOA05_ptemp_salt_annual.nc
 ocean_grid: ocean_hgrid.nc
 
 ocean_hgrid.nc: pytools/grid_generation
-	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r 8 
+	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r $(INVERSE_RESOLUTION) --south_cutoff_row 5  
 
 pytools/grid_generation: 
 	echo $@
@@ -71,11 +70,11 @@ topog_editted.nc: pytools/thin-wall-topography topog_merged.nc
 	cp tmp.nc $(@F)
 
 topog_ice9ed.nc: pytools/thin-wall-topography topog_editted.nc
-	pytools/thin-wall-topography/python/ice9.py topog_editted.nc --variable 'height' --iseed 10 --jseed 600 --output $(@F)
+	pytools/thin-wall-topography/python/ice9.py topog_editted.nc --variable 'height' --iseed 10 --jseed 1000 --output $(@F)
 
 ocean_topog.nc: topog_ice9ed.nc
 	cp topog_ice9ed.nc topog.nc
-	ln -s topog.nc ocean_topog.nc
+	cp topog.nc ocean_topog.nc
 
 mosaic_ocean/ocean_mosaic.nc: ocean_hgrid.nc ocean_topog.nc $(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic
 	mkdir -p $(@D)
@@ -111,16 +110,17 @@ mosaic_ocean/runoff.daitren.iaf.v2011.02.10.nc: mosaic_ocean/runoff.daitren.iaf.
 	(cd $(@D); ncatted -h -O -a modulo_beg,time,a,c,"1948-01-01 00:00:00" $(@F))
 	(cd $(@D); ncatted -h -O -a modulo_end,time,a,c,"2008-01-01 00:00:00" $(@F))
 
-basin_codes.nc: ocean_topog.nc
-	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python make_basin_mask.py
+mosaic_ocean/basin_codes.nc: ocean_topog.nc
+	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python ../../../tools/python/make_basin_mask.py
 	ncatted -h -a flag_meanings,basin,c,c,'1:Southern Ocean, 2:Atlantic Ocean, 3:Pacific Ocean, 4:Arctic Ocean, 5:Indian Ocean, 6:Mediterranean Sea, 7:Black Sea, 8:Hudson Bay, 9:Baltic Sea, 10:Red Sea, 11:Persian Gulf' basin_codes.nc
 	ncatted -h -a flag_values,basin,c,c,'1,2,3,4,5,6,7,8,9,10,11' basin_codes.nc
+	cp basin_codes.nc $(@D)/$(@F)
 
 WOA05_ptemp_salt_annual.nc: WOA05_ptemp_salt_monthly.nc
 	ncra -h -O $< $@
 
-WOA05_ptemp_salt_monthly.nc: ocean_hgrid.nc ocean_topog.nc  interpWOA05.py local
-	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python interpWOA05.py
+WOA05_ptemp_salt_monthly.nc: ocean_hgrid.nc ocean_topog.nc local
+	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python ../../../tools/python/interpWOA05.py
 	ncatted -h -a modulo,TIME,c,c,' ' WOA05_ptemp_salt_monthly.nc
 
 pytools/interp_and_fill:
@@ -139,6 +139,7 @@ seawifs-clim-1997-2010.nc:
 
 mosaic_ocean/seawifs-clim-1997-2010.nc: ocean_hgrid.nc ocean_topog.nc seawifs-clim-1997-2010.nc pytools/interp_and_fill
 	cd $(@D); ../pytools/interp_and_fill/interp_and_fill.py ocean_hgrid.nc ocean_mask.nc ../seawifs-clim-1997-2010.nc  chlor_a --fms $(@F)
+	cd $(@D); ncrename -O -v chlor_a,CHL_A seawifs-clim-1997-2010.nc seawifs-clim-1997-2010.nc
 #	cd $(@D); ncatted -h -a modulo,TIME,c,c,' ' $(@F)
 
 #regrid geothermal_davies2013
@@ -151,7 +152,7 @@ preprocessing_geothermal/Makefile:
 	git clone https://github.com/adcroft/OM4_05_preprocessing_geothermal.git $(@D)
 
 mosaic_ocean/tidal_amplitude.nc: DATA ocean_topog.nc local
-	unlimit stacksize; setenv PYTHONPATH local/lib/python; python interpTides.py
+	unlimit stacksize; setenv PYTHONPATH local/lib/python; python ../../../tools/python/interpTides.py
 	mv tidal_amplitude.nc $@
 
 DATA: tpxo7_atlas_netcdf.tar.Z
@@ -227,25 +228,27 @@ $(filter-out mosaic_ocean/grid_spec.nc mosaic_ocean/ocean_mosaic.nc,$(OCN_MOSAIC
 $(filter-out mosaic_c96/mosaic.nc,$(C96_MOSAIC:.cdl=.nc)): mosaic_c96/mosaic.nc
 mosaic_c96/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel
 	mkdir -p $(@D)
-	(cd $(@D); ln -sf ../ocean_hgrid.nc ../ocean_topog.nc .)
-	(cd $(@D); ln -sf ../mosaic_ocean/ocean_mosaic.nc .)
+	(cd $(@D); cp ../ocean_hgrid.nc ../ocean_topog.nc .)
+	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
 	(cd $(@D); tar xf /archive/cjg/awg/input/grid/C96_CM2G_grid.tar C96_grid.\* C96_mosaic.nc)
 	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C96_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
+	(cd $(@D); cp mosaic.nc grid_spec.nc
 
 $(filter-out mosaic_c192/mosaic.nc,$(C192_MOSAIC:.cdl=.nc)): mosaic_c192/mosaic.nc
 mosaic_c192/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel
 	mkdir -p $(@D)
-	(cd $(@D); ln -sf ../ocean_hgrid.nc ../ocean_topog.nc .)
-	(cd $(@D); ln -sf ../mosaic_ocean/ocean_mosaic.nc .)
+	(cd $(@D); cp ../ocean_hgrid.nc ../ocean_topog.nc .)
+	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
 	(cd $(@D); tar xf /archive/cjg/awg/input/grid/c192_CM2_grid_20130423.tar C192_grid.\* C192_mosaic.nc)
 	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C192_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
+	(cd $(@D); cp mosaic.nc grid_spec.nc
 
 %.cdl: %.nc
 	ncdump $< | egrep -v 'code_version|history' > $@
 
 clean:
-	-rm -rf fre_nctools local MIDAS OM4_05_* DATA mosaic_* preprocessing_geothermal pytools
-	-rm -f *.nc *grid.nc salt*.nc seaw*.nc tidal_*.nc WOA*.nc geoth*.nc *topog*.nc PHC*.nc basin*.nc logfile* input.nml runoff*.nc
+#	-rm -rf fre_nctools local pytools
+	-rm -rf OM4_* mosaic_* DATA preprocessing_geothermal *.nc *grid.nc salt*.nc seaw*.nc tidal_*.nc WOA*.nc geoth*.nc *topog*.nc PHC*.nc basin*.nc logfile* input.nml runoff*.nc
 
 md5sums.txt: ocean_hgrid.nc antarctic_spherical_supergrid.nc mercator_supergrid.nc ncap_supergrid.nc supergrid.nc interpolated_topog.nc mercator_topog_gebco.nc ncap_topog_gebco.nc ncap_topog.nc so_topog_gebco.nc ocean_topog.nc $(OCN_MOSAIC) $(C96_MOSAIC) $(C192_MOSAIC) basin_codes.nc salt_restore.nc seawifs_1998-2006_smoothed_2X.nc tidal_amplitude.nc WOA05_ptemp_salt_monthly.nc WOA05_ptemp_salt_annual.nc geothermal_davies2013_v1.nc mosaic_ocean/runoff.daitren.iaf.v2011.02.10.nc mosaic_ocean/runoff.daitren.clim.v2011.02.10.nc
 	echo Grids > $@
