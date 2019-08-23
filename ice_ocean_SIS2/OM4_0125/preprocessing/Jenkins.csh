@@ -11,14 +11,16 @@ module load hdf5 netcdf/4.2 intel_compilers
 module load nco/4.3.1
 module load mpich2
 module load git
-module load python/2.7.3_workstation
 
 # Run through the work flow
 # module python/3.6.4 has a conflict with intel_compilers and if loaded does not let icc to compile
 # So, first make all the compile jobs then load python 
-#make fre_nctools/tools/make_solo_mosaic/make_solo_mosaic
-#make fre_nctools/tools/make_quick_mosaic/make_quick_mosaic
+make fre_nctools/tools/make_solo_mosaic/make_solo_mosaic
+make fre_nctools/tools/make_quick_mosaic/make_quick_mosaic
+make fre_nctools/tools/check_mask/check_mask
+make local
 # Generate grid using the new tools
+module load python/2.7.3_workstation
 make ocean_hgrid.nc
 # Generate topography using the new tools (only works with python3)
 module unload python

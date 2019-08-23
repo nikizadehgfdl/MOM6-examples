@@ -36,7 +36,7 @@ ocean_hgrid.nc: pytools/grid_generation
 pytools/grid_generation: 
 	echo $@
 	mkdir -p $(@D) 
-	cd $(@D); git clone --recursive -b correct_joins https://github.com/nikizadehgfdl/grid_generation.git
+	cd $(@D); git clone --recursive -b dev https://github.com/nikizadehgfdl/grid_generation.git
 
 check:
 	nccmp -d $(OCN_GRID_DIR)/ocean_hgrid.nc /archive/gold/datasets/OM4_05/mosaic_ocean.v20180227.unpacked/ocean_hgrid.nc
