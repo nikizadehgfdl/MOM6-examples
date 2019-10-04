@@ -31,7 +31,7 @@ obs: WOA05_ptemp_salt_monthly.nc WOA05_ptemp_salt_annual.nc
 ocean_grid: ocean_hgrid.nc
 
 ocean_hgrid.nc: pytools/grid_generation
-	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r $(INVERSE_RESOLUTION) --south_cutoff_row 5  
+	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r $(INVERSE_RESOLUTION) --south_cutoff_row 5 --smooth_dy --even_j 
 
 pytools/grid_generation: 
 	echo $@
@@ -64,13 +64,9 @@ topog_BP.nc: pytools/thin-wall-topography ocean_hgrid.ncBP.nc
 topog_merged.nc: pytools/thin-wall-topography topog_SC.nc topog_SO.nc topog_MERC.nc topog_BP.nc
 	pytools/thin-wall-topography/python/merge_topog_tiles.py --tilefiles topog_SC.nc,topog_SO.nc,topog_MERC.nc,topog_BP.nc  --outputfilename $(@F)
 
-topog_editted.nc: pytools/thin-wall-topography topog_merged.nc
-	cp topog_merged.nc tmp.nc 
-#	pytools/thin-wall-topography/python/apply_topog_edits.py topo_edits_020718.nc tmp.nc --variable 'height'
-	cp tmp.nc $(@F)
-
-topog_ice9ed.nc: pytools/thin-wall-topography topog_editted.nc
-	pytools/thin-wall-topography/python/ice9.py topog_editted.nc --variable 'height' --iseed 10 --jseed 1000 --output $(@F)
+topog_ice9ed.nc: pytools/thin-wall-topography topog_merged.nc
+	#pytools/thin-wall-topography/python/ice9.py topog_merged.nc --variable 'height' --iseed 10 --jseed 200 --output $(@F)
+	pytools/thin-wall-topography/python/ice9.py topog_merged.nc --variable 'h_min' --iseed 10 --jseed 1000 --output $(@F)
 
 ocean_topog.nc: topog_ice9ed.nc
 	cp topog_ice9ed.nc topog.nc
@@ -95,20 +91,16 @@ mosaic_ocean/runoff.daitren.clim.nc: mosaic_ocean/ocean_mosaic.nc mosaic_ocean/o
 #This needs python 3 + numba
 #	(cd $(@D); time /net2/nnz/adcroft/regrid_runoff/regrid_runoff.py ocean_hgrid.nc ocean_mask.nc ../runoff.daitren.clim.v2011.02.10.nc --fms runoff_tmp.nc
 #This needs python 3 
-	cd $(@D); time ../pytools/regrid_runoff/regrid_runoff_nonumba.py ocean_hgrid.nc ocean_mask.nc /archive/gold/datasets/CORE/NYF_v2.0/runoff.daitren.clim.v2011.02.10.nc --fms $(@F)
-
-mosaic_ocean/runoff.daitren.clim.v2011.02.10.nc: mosaic_ocean/runoff.daitren.clim.nc
-	(cd $(@D); ncks -h -3 runoff.daitren.clim.nc $(@F))
-	(cd $(@D); ncatted -h -O -a 'modulo,time,c,c, ' $(@F))
+	cd $(@D); time ../pytools/regrid_runoff/regrid_runoff_nonumba.py ocean_hgrid.nc ocean_mask.nc /archive/gold/datasets/CORE/NYF_v2.0/runoff.daitren.clim.v2011.02.10.nc --fms $(@F)  --progress
+	cd $(@D); ncks -h -3 -O $(@F) $(@F)
+	cd $(@D); ncatted -h -O -a 'modulo,time,c,c, ' $(@F)
 
 mosaic_ocean/runoff.daitren.iaf.nc: mosaic_ocean/ocean_mosaic.nc mosaic_ocean/ocean_mask.nc pytools/regrid_runoff
-	cd $(@D); time ../pytools/regrid_runoff/regrid_runoff_nonumba.py ocean_hgrid.nc ocean_mask.nc /archive/gold/datasets/CORE/IAF_v2.0/runoff.daitren.iaf.v2011.02.10.nc --fms $(@F)
-
-mosaic_ocean/runoff.daitren.iaf.v2011.02.10.nc: mosaic_ocean/runoff.daitren.iaf.nc
-	(cd $(@D); ncks -h -3 runoff.daitren.iaf.nc $(@F))
-	(cd $(@D); ncatted -h -O -a 'modulo,time,c,c, ' $(@F))
-	(cd $(@D); ncatted -h -O -a modulo_beg,time,a,c,"1948-01-01 00:00:00" $(@F))
-	(cd $(@D); ncatted -h -O -a modulo_end,time,a,c,"2008-01-01 00:00:00" $(@F))
+	cd $(@D); time ../pytools/regrid_runoff/regrid_runoff_nonumba.py ocean_hgrid.nc ocean_mask.nc /archive/gold/datasets/CORE/IAF_v2.0/runoff.daitren.iaf.v2011.02.10.nc --fms $(@F) --progress
+	cd $(@D); ncks -h -3 -O $(@F) $(@F)
+	cd $(@D); ncatted -h -O -a 'modulo,time,c,c, ' $(@F)
+	cd $(@D); ncatted -h -O -a modulo_beg,time,a,c,"1948-01-01 00:00:00" $(@F)
+	cd $(@D); ncatted -h -O -a modulo_end,time,a,c,"2008-01-01 00:00:00" $(@F)
 
 mosaic_ocean/basin_codes.nc: ocean_topog.nc
 	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python ../../../tools/python/make_basin_mask.py
@@ -129,9 +121,9 @@ pytools/interp_and_fill:
 	cd $(@D); git clone https://github.com/adcroft/interp_and_fill.git; cd interp_and_fill; git checkout 45908a8cbe4
 
 mosaic_ocean/salt_restore.nc: mosaic_ocean/ocean_hgrid.nc mosaic_ocean/ocean_mosaic.nc PHC2_salx.2004_08_03.corrected.nc pytools/interp_and_fill
-	cd $(@D); ../pytools/interp_and_fill/interp_and_fill.py  ocean_hgrid.nc ocean_mask.nc ../PHC2_salx.2004_08_03.corrected.nc SALT --fms --closest salt_restore.nc
-	cd $(@D); ncatted -h -a modulo,time,c,c,' ' salt_restore.nc
-	cd $(@D); ncatted -h -a units,time,m,c,'days since 0001-01-01 00:00:00' salt_restore.nc
+	cd $(@D); ../pytools/interp_and_fill/interp_and_fill.py  ocean_hgrid.nc ocean_mask.nc ../PHC2_salx.2004_08_03.corrected.nc SALT --fms --closest $(@F)
+	cd $(@D); ncatted -h -a modulo,time,c,c,' ' $(@F)
+	cd $(@D); ncatted -h -a units,time,m,c,'days since 0001-01-01 00:00:00' $(@F)
 
 seawifs-clim-1997-2010.nc: 
 	dmget /archive/gold/datasets/obs/SeaWiFS/fill_ocean_color/seawifs-clim-1997-2010.nc
@@ -193,12 +185,22 @@ mosaic_ocean/mask_tables: fre_nctools/tools/check_mask/check_mask
 	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 100,90
 	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 100,100
 	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 120,120
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 160,120
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 200,100
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 200,150
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 200,200
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 250,200
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 300,200
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 300,240
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 350,200
+	cd $(@D); ../$(FRE_NCTOOLS)/check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog ocean_topog.nc --layout 300,300
 
 
 fre_nctools:
 	echo $@
 	git clone http://gitlab.gfdl.noaa.gov/fre/fre-nctools.git $@
-	(cd $@; git checkout 168f6a5a2717bc80961da6ba751509cd8c7ace0d)
+	(cd $@; git checkout nnz_gridgen)
+#	(cd $@; git checkout 168f6a5a2717bc80961da6ba751509cd8c7ace0d)
 #	(cd $@; git checkout user/z1l/dev)
 fre_nctools/tools: fre_nctools
 fre_nctools/tools/make_solo_mosaic/make_solo_mosaic fre_nctools/tools/make_quick_mosaic/make_quick_mosaic \

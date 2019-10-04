@@ -1,10 +1,10 @@
-#!/bin/csh -fx
-
+#!/bin/bash -x                                     
+set -e
 echo -n Started $0 in ; pwd
 echo  Started at
 date
 # Modules
-source $MODULESHOME/init/csh
+source $MODULESHOME/init/bash
 module use -a /home/fms/local/modulefiles
 module unload python nco netcdf
 module load hdf5 netcdf/4.2 intel_compilers
@@ -25,16 +25,16 @@ make ocean_hgrid.nc
 # Generate topography using the new tools (only works with python3)
 module unload python
 module load python/3.6.4 
-#make ocean_topog.nc
+make ocean_topog.nc
 make mosaic_ocean/grid_spec.nc
 make mosaic_ocean/salt_restore.nc
 make mosaic_ocean/seawifs-clim-1997-2010.nc
 make mosaic_ocean/geothermal_davies2013_v1.nc
-make mosaic_ocean/runoff.daitren.iaf.v2011.02.10.nc
-make mosaic_ocean/runoff.daitren.clim.v2011.02.10.nc
+make mosaic_ocean/runoff.daitren.iaf.nc
+make mosaic_ocean/runoff.daitren.clim.nc
 # MIDAS tools work only with python2
 module swap python/2.7.3_workstation
-setenv PYTHONPATH $cwd/MIDAS:local/lib/python/
+export PYTHONPATH=$cwd/MIDAS:local/lib/python/
 make mosaic_ocean/tidal_amplitude.nc
 make mosaic_ocean/basin_codes.nc
 #WOA regrid is needed only for PP, no need to bundle it with the mosaic tar
