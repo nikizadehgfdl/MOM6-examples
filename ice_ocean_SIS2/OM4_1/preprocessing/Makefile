@@ -8,11 +8,11 @@
 # or
 #   make supergrid.nc
 #   make interpolated_topog.nc
-INVERSE_RESOLUTION=8
-NP=8
+INVERSE_RESOLUTION=1
+NP=16
 FRE_NCTOOLS = fre_nctools/tools
 
-all: ocean_grid ocean_mosaic c96_mosaic c192_mosaic forcing obs
+all: ocean_grid ocean_mosaic c48_mosaic c192_mosaic forcing obs
 	md5sum -c md5sums.txt
 
 showenv:
@@ -31,7 +31,7 @@ obs: WOA05_ptemp_salt_monthly.nc WOA05_ptemp_salt_annual.nc
 ocean_grid: ocean_hgrid.nc
 
 ocean_hgrid.nc: pytools/grid_generation
-	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r $(INVERSE_RESOLUTION) --south_cutoff_row 5 --smooth_dy --even_j 
+	pytools/grid_generation/ocean_grid_generator.py --write_subgrid_files -f $(@F) -r $(INVERSE_RESOLUTION) --rdp 0 --enhanced_equatorial --match_dy
 
 pytools/grid_generation: 
 	echo $@
@@ -47,7 +47,7 @@ pytools/thin-wall-topography:
 	mkdir -p $(@D) 
 	cd $(@D); git clone -b dev https://github.com/nikizadehgfdl/thin-wall-topography.git
 
-topog: topog_MERC.nc topog_SO.nc topog_BP.nc topog_SC.nc
+topog: topog_MERC.nc topog_BP.nc 
 
 topog_MERC.nc: pytools/thin-wall-topography ocean_hgrid.ncMerc.nc 
 	pytools/thin-wall-topography/python/create_topog_refinedSampling.py --hgridfilename ./ocean_hgrid.ncMerc.nc --outputfilename $(@F) 
@@ -61,12 +61,12 @@ topog_SC.nc: pytools/thin-wall-topography ocean_hgrid.ncSC.nc
 topog_BP.nc: pytools/thin-wall-topography ocean_hgrid.ncBP.nc
 	pytools/thin-wall-topography/python/create_topog_refinedSampling.py --hgridfilename ./ocean_hgrid.ncBP.nc --outputfilename $(@F)
 
-topog_merged.nc: pytools/thin-wall-topography topog_SC.nc topog_SO.nc topog_MERC.nc topog_BP.nc
-	pytools/thin-wall-topography/python/merge_topog_tiles.py --tilefiles topog_SC.nc,topog_SO.nc,topog_MERC.nc,topog_BP.nc  --outputfilename $(@F)
+topog_merged.nc: pytools/thin-wall-topography topog_MERC.nc topog_BP.nc
+	pytools/thin-wall-topography/python/merge_topog_tiles.py --tilefiles topog_MERC.nc,topog_BP.nc  --outputfilename $(@F)
 
 topog_ice9ed.nc: pytools/thin-wall-topography topog_merged.nc
 	#pytools/thin-wall-topography/python/ice9.py topog_merged.nc --variable 'height' --iseed 10 --jseed 200 --output $(@F)
-	pytools/thin-wall-topography/python/ice9.py topog_merged.nc --variable 'h_min' --iseed 10 --jseed 1000 --output $(@F)
+	pytools/thin-wall-topography/python/ice9.py topog_merged.nc --variable 'h_min' --iseed 10 --jseed 100 --output $(@F)
 
 ocean_topog.nc: topog_ice9ed.nc
 	cp topog_ice9ed.nc topog.nc
@@ -103,7 +103,7 @@ mosaic_ocean/runoff.daitren.iaf.nc: mosaic_ocean/ocean_mosaic.nc mosaic_ocean/oc
 	cd $(@D); ncatted -h -O -a modulo_end,time,a,c,"2008-01-01 00:00:00" $(@F)
 
 mosaic_ocean/basin_codes.nc: ocean_topog.nc
-	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python ../../../tools/python/make_basin_mask.py
+	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; export PYTHONPATH=local/lib/python; python ../../../tools/python/make_basin_mask.py
 	ncatted -h -a flag_meanings,basin,c,c,'1:Southern Ocean, 2:Atlantic Ocean, 3:Pacific Ocean, 4:Arctic Ocean, 5:Indian Ocean, 6:Mediterranean Sea, 7:Black Sea, 8:Hudson Bay, 9:Baltic Sea, 10:Red Sea, 11:Persian Gulf' basin_codes.nc
 	ncatted -h -a flag_values,basin,c,c,'1,2,3,4,5,6,7,8,9,10,11' basin_codes.nc
 	cp basin_codes.nc $(@D)/$(@F)
@@ -112,7 +112,7 @@ WOA05_ptemp_salt_annual.nc: WOA05_ptemp_salt_monthly.nc
 	ncra -h -O $< $@
 
 WOA05_ptemp_salt_monthly.nc: ocean_hgrid.nc ocean_topog.nc local
-	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; python ../../../tools/python/interpWOA05.py
+	unlimit stacksize; setenv PYTHONPATH ./local/lib/python; export PYTHONPATH=local/lib/python; python ../../../tools/python/interpWOA05.py
 	ncatted -h -a modulo,TIME,c,c,' ' WOA05_ptemp_salt_monthly.nc
 
 pytools/interp_and_fill:
@@ -144,11 +144,11 @@ preprocessing_geothermal/Makefile:
 	git clone https://github.com/adcroft/OM4_05_preprocessing_geothermal.git $(@D)
 
 mosaic_ocean/tidal_amplitude.nc: DATA ocean_topog.nc local
-	unlimit stacksize; setenv PYTHONPATH local/lib/python; python ../../../tools/python/interpTides.py
+	unlimit stacksize; setenv PYTHONPATH local/lib/python; export PYTHONPATH=local/lib/python; python ../../../tools/python/interpTides.py
 	mv tidal_amplitude.nc $@
 
-DATA: tpxo7_atlas_netcdf.tar.Z
-	tar xzvf tpxo7_atlas_netcdf.tar.Z
+DATA: 
+	tar xzvf /archive/gold/datasets/obs/tpxo7_atlas_netcdf.tar.Z
 	touch DATA
 
 tpxo7_atlas_netcdf.tar.Z:
@@ -201,7 +201,7 @@ fre_nctools:
 fre_nctools/tools: fre_nctools
 fre_nctools/tools/make_solo_mosaic/make_solo_mosaic fre_nctools/tools/make_quick_mosaic/make_quick_mosaic \
 fre_nctools/tools/make_coupler_mosaic/make_coupler_mosaic fre_nctools/tools/make_coupler_mosaic/make_coupler_mosaic_parallel fre_nctools/tools/check_mask/check_mask\
-fre_nctools/tools/runoff_regrid/runoff_regrid fre_nctools/tools/runoff_regrid/runoff_regrid_parallel: fre_nctools/tools
+fre_nctools/tools/runoff_regrid/runoff_regrid fre_nctools/tools/runoff_regrid/runoff_regrid_parallel fre_nctools/tools/make_hgrid/make_hgrid: fre_nctools/tools
 	(cd $(@D); make SITE=pan -f fre-nctools.mk $(@F))
 
 OCN_MOSAIC = $(foreach f,atmos_mosaic_tile1Xland_mosaic_tile1.cdl atmos_mosaic_tile1Xocean_mosaic_tile1.cdl grid_spec.cdl land_mask.cdl\
@@ -232,6 +232,18 @@ mosaic_c96/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)
 	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C96_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
 	(cd $(@D); cp mosaic.nc grid_spec.nc
 
+mosaic_c48/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_hgrid/make_hgrid $(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic $(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel
+	mkdir -p $(@D)
+	(cd $(@D); cp ../ocean_hgrid.nc ../ocean_topog.nc .)
+	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
+	#(cd $(@D); cp ../mosaic_ocean/basin_codes.nc .)
+	#generate hgrid for CXX atmosphere      make_hgrid --grid_type gnomonic_ed --nlon (2*XX) --grid_name CXX_grid
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_hgrid/make_hgrid --grid_type gnomonic_ed --nlon 96 --grid_name C48_grid)
+	#generate mosaic for CXX atmosphere
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic --num_tiles 6 --dir ./ --mosaic_name C48_mosaic --tile_file C48_grid.tile1.nc,C48_grid.tile2.nc,C48_grid.tile3.nc,C48_grid.tile4.nc,C48_grid.tile5.nc,C48_grid.tile6.nc)
+	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C48_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
+	(cd $(@D); cp mosaic.nc grid_spec.nc)
+
 $(filter-out mosaic_c192/mosaic.nc,$(C192_MOSAIC:.cdl=.nc)): mosaic_c192/mosaic.nc
 mosaic_c192/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel
 	mkdir -p $(@D)
@@ -239,7 +251,31 @@ mosaic_c192/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS
 	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
 	(cd $(@D); tar xf /archive/cjg/awg/input/grid/c192_CM2_grid_20130423.tar C192_grid.\* C192_mosaic.nc)
 	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C192_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
-	(cd $(@D); cp mosaic.nc grid_spec.nc
+	(cd $(@D); cp mosaic.nc grid_spec.nc)
+
+mosaic_c256str/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_hgrid/make_hgrid $(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic $(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel
+	mkdir -p $(@D)
+	(cd $(@D); cp ../ocean_hgrid.nc ../ocean_topog.nc .)
+	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
+	#(cd $(@D); cp ../mosaic_ocean/basin_codes.nc .)
+	#generate hgrid for CXX atmosphere      make_hgrid --grid_type gnomonic_ed --nlon (2*XX) --grid_name CXX_grid
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_hgrid/make_hgrid --grid_type gnomonic_ed --great_circle_algorithm --do_schmidt --stretch_factor 2.6 --target_lon 262.4 --target_lat 33.4 --nlon 512 --grid_name C256str_grid)
+	#generate mosaic for CXX atmosphere
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic --num_tiles 6 --dir ./ --mosaic_name C256str_mosaic --tile_file C256str_grid.tile1.nc,C256str_grid.tile2.nc,C256str_grid.tile3.nc,C256str_grid.tile4.nc,C256str_grid.tile5.nc,C256str_grid.tile6.nc)
+	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --atmos_mosaic C256str_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc --interp_order 1)
+	(cd $(@D); cp mosaic.nc grid_spec.nc)
+
+mosaic_c256/mosaic.nc: mosaic_ocean/ocean_mosaic.nc ocean_topog.nc $(FRE_NCTOOLS)/make_hgrid/make_hgrid $(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic
+	mkdir -p $(@D)
+	(cd $(@D); cp ../ocean_hgrid.nc ../ocean_topog.nc .)
+	(cd $(@D); cp ../mosaic_ocean/ocean_mosaic.nc .)
+	#(cd $(@D); cp ../mosaic_ocean/basin_codes.nc .)
+	#generate hgrid for CXX atmosphere      make_hgrid --grid_type gnomonic_ed --nlon (2*XX) --grid_name CXX_grid
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_hgrid/make_hgrid --grid_type gnomonic_ed --nlon 512 --grid_name C256_grid)
+	#generate mosaic for CXX atmosphere
+	(cd $(@D); ../$(FRE_NCTOOLS)/make_solo_mosaic/make_solo_mosaic --num_tiles 6 --dir ./ --mosaic_name C256_mosaic --tile_file C256_grid.tile1.nc,C256_grid.tile2.nc,C256_grid.tile3.nc,C256_grid.tile4.nc,C256_grid.tile5.nc,C256_grid.tile6.nc)
+	(cd $(@D); time mpirun -np $(NP) ../$(FRE_NCTOOLS)/make_coupler_mosaic/make_coupler_mosaic_parallel --reproduce_siena --atmos_mosaic C256_mosaic.nc --ocean_mosaic ocean_mosaic.nc --mosaic_name mosaic --ocean_topog ocean_topog.nc)
+	(cd $(@D); cp mosaic.nc grid_spec.nc)
 
 %.cdl: %.nc
 	ncdump $< | egrep -v 'code_version|history' > $@
