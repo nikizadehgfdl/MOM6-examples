@@ -1,0 +1,1 @@
+/archive/Raphael.Dussin/datasets/OM4p125/OM4p125_grid_20190822_merged_bathy_unpacked/ocean_static_no_mask_table.nc
