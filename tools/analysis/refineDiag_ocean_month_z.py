@@ -99,6 +99,9 @@ def main(args):
     #
     #   The quanity 'yy' above is numerically-equivalent to 'yq'
 
+    if (len(yq) == 1+len(yh)): #symmetric case
+       atlantic_arctic_mask=np.append(atlantic_arctic_mask,np.zeros((1,atlantic_arctic_mask.shape[1])),axis=0)
+       indo_pacific_mask=np.append(indo_pacific_mask,np.zeros((1,indo_pacific_mask.shape[1])),axis=0)
     #-- msftyyz
     if 'vmo' in f_in.variables.keys():
       varname = 'vmo'
@@ -161,7 +164,12 @@ def main(args):
     #-- wmo
     if all(x in f_in.variables.keys() for x in ['umo', 'vmo']):
       varname = 'wmo'
-      wmo = calc_w_from_convergence(f_in.variables['umo'], f_in.variables['vmo'])
+      if (len(yq) == 1+len(yh)): #symmetric case
+         #print(f_in.variables['umo'].shape, f_in.variables['vmo'].shape)
+         #((12, 35, 1120, 1441), (12, 35, 1121, 1440))
+         wmo = calc_w_from_convergence(f_in.variables['umo'][:,:,:,1:], f_in.variables['vmo'][:,:,1:,:])
+      else:
+         wmo = calc_w_from_convergence(f_in.variables['umo'], f_in.variables['vmo'])
       wmo[wmo.mask] = nc_misval
       wmo = np.ma.array(wmo,fill_value=nc_misval)
       wmo.long_name = 'Upward mass transport from resolved and parameterized advective transport'
