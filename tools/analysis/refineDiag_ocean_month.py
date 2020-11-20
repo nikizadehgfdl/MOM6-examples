@@ -40,6 +40,8 @@ def run():
 
 def heat_trans_by_basin(x,mask=None,lat=None,minlat=None):
     if mask is not None:
+	if not (x.shape[0] == 1+mask.shape[0]): #symmetric case
+	   mask=np.append(mask,np.zeros((1,mask.shape[1])),axis=0)
         varmask = np.sum(mask,axis=-1)
         varmask = np.expand_dims(varmask,0)
         varmask = np.where(np.equal(varmask,0.),True,False)
@@ -76,8 +78,10 @@ def main(args):
     f_in = nc.Dataset(args.infile)
 
     #-- Read in existing dimensions from history netcdf file
+    yh  = f_in.variables['yh']
     yq  = f_in.variables['yq']
     xh = f_in.variables['xh']
+    xq = f_in.variables['xq']
     tax = f_in.variables['time']
 
     #-- hfy
@@ -116,6 +120,10 @@ def main(args):
     else:
       do_hfx = False
 
+#    if not (len(yh) == len(yq)): #symmetric case
+#      hfy=hfy[:,1:,:]	
+#      hfx=hfx[:,1:,:]	
+#      This would require changing the dimensions of hfy and hfx when writing to output file
     #-- hfbasin
     if do_hfy:
       hfbasin = np.ma.ones((len(tax),3,len(yq)))*0.
@@ -174,14 +182,18 @@ def main(args):
       time_dim = f_out.createDimension('time', size=None)
       basin_dim = f_out.createDimension('basin', size=3)
       strlen_dim = f_out.createDimension('strlen', size=21)
+      yh_dim  = f_out.createDimension('yh',  size=len(yh[:]))
       yq_dim  = f_out.createDimension('yq',  size=len(yq[:]))
       xh_dim = f_out.createDimension('xh', size=len(xh[:]))
+      xq_dim = f_out.createDimension('xq', size=len(xq[:]))
       nv_dim  = f_out.createDimension('nv',  size=len(nv[:]))
 
       time_out = f_out.createVariable('time', np.float64, ('time'))
       yq_out   = f_out.createVariable('yq',   np.float64, ('yq'))
+      yh_out   = f_out.createVariable('yh',   np.float64, ('yh'))
       region_out = f_out.createVariable('region', 'c', ('basin', 'strlen'))
       xh_out  = f_out.createVariable('xh',  np.float64, ('xh'))
+      xq_out  = f_out.createVariable('xq',  np.float64, ('xq'))
       nv_out  = f_out.createVariable('nv',  np.float64, ('nv'))
 
       if do_hfy:
@@ -191,7 +203,7 @@ def main(args):
           if k[0] != '_': hfy_out.setncattr(k,hfy.__dict__[k])
 
       if do_hfx:
-        hfx_out = f_out.createVariable('hfx', np.float32, ('time', 'yq', 'xh'), fill_value=1.e20)
+        hfx_out = f_out.createVariable('hfx', np.float32, ('time', 'yh', 'xq'), fill_value=1.e20)
         hfx_out.missing_value = 1.e20
         for k in hfx.__dict__.keys():
           if k[0] != '_': hfx_out.setncattr(k,hfx.__dict__[k])

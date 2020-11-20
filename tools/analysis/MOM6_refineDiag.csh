@@ -102,34 +102,35 @@ set ocean_static_file = $yr1.ocean_static.nc
 if ( -e $yr1.ocean_static_no_mask_table.nc ) set ocean_static_file = $yr1.ocean_static_no_mask_table.nc
 
 set basin_codes_d2_file = ocean_static_d2.nc
+set basin_codes_file = ocean_static.nc
  
 #echo '====annual mean Eddy Kinetic Energy======'
 #mkdir -p $out_dir/refineDiag_ocean_annual/EddyKineticEnergy
 #$script_dir/EddyKineticEnergy.py  -g $ocean_static_file -o $out_dir/refineDiag_ocean_annual/EddyKineticEnergy/EKE_mean_${yr1}.png -l ${yr1} $yr1.ocean_daily.nc
 
 echo '==== Offline Diagnostics ===='
-if ( -f $yr1.ocean_month.nc ) then
-  $script_dir/refineDiag_ocean_month.py -b basin_codes.nc -r $refineDiagDir $yr1.ocean_month.nc
+if ( -f $yr1.ocean_monthly.nc ) then
+  $script_dir/refineDiag_ocean_month.py -b $basin_codes_file -r $refineDiagDir $yr1.ocean_monthly.nc
 endif
 if ( -f $yr1.ocean_month_z.nc ) then
-  $script_dir/refineDiag_ocean_month_z.py -b basin_codes.nc -r $refineDiagDir -s ./ $yr1.ocean_month_z.nc
+  $script_dir/refineDiag_ocean_month_z.py -b $basin_codes_file -r $refineDiagDir -s ./ $yr1.ocean_month_z.nc
 endif
 if ( -f $yr1.ocean_month_rho2.nc ) then
-  $script_dir/refineDiag_ocean_month_rho2.py -b basin_codes.nc -r $refineDiagDir $yr1.ocean_month_rho2.nc
+  $script_dir/refineDiag_ocean_month_rho2.py -b $basin_codes_file -r $refineDiagDir $yr1.ocean_month_rho2.nc
 endif
 
 echo '==== Offline Diagnostics downsampled ===='
-if ( -f $yr1.ocean_month_d2.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.ocean_static_d2.nc" $yr1.ocean_month_d2.nc
-  $script_dir/refineDiag_ocean_month.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.ocean_month_d2.nc
+if ( -f $yr1.oceanD2_month.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month.nc
+  $script_dir/refineDiag_ocean_month.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.oceanD2_month.nc
 endif
-if ( -f $yr1.ocean_month_z_d2.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.ocean_static_d2.nc" $yr1.ocean_month_z_d2.nc
-  $script_dir/refineDiag_ocean_month_z.py -b $basin_codes_d2_file -r $refineDiagDir -s ./ $yr1.ocean_month_z_d2.nc
+if ( -f $yr1.oceanD2_month_z.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month_z.nc
+  $script_dir/refineDiag_ocean_month_z.py -b $basin_codes_d2_file -r $refineDiagDir -s ./ $yr1.oceanD2_month_z.nc
 endif
-if ( -f $yr1.ocean_month_rho2_d2.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.ocean_static_d2.nc" $yr1.ocean_month_rho2_d2.nc
-  $script_dir/refineDiag_ocean_month_rho2.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.ocean_month_rho2_d2.nc
+if ( -f $yr1.oceanD2_month_rho2.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month_rho2.nc
+  $script_dir/refineDiag_ocean_month_rho2.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.oceanD2_month_rho2.nc
 endif
 
 

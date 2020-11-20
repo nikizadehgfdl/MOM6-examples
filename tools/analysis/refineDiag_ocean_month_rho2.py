@@ -54,6 +54,9 @@ def main(args):
     rho2_i = f_in.variables['rho2_i']
     tax = f_in.variables['time']
 
+    if (len(yq) == 1+atlantic_arctic_mask.shape[0]): #symmetric case
+       atlantic_arctic_mask=np.append(atlantic_arctic_mask,np.zeros((1,atlantic_arctic_mask.shape[1])),axis=0)
+       indo_pacific_mask=np.append(indo_pacific_mask,np.zeros((1,indo_pacific_mask.shape[1])),axis=0)
     #-- msftyrho
     if 'vmo' in f_in.variables.keys():
       varname = 'vmo'
