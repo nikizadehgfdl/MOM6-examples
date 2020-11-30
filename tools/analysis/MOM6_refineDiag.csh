@@ -120,17 +120,17 @@ if ( -f $yr1.ocean_month_rho2.nc ) then
 endif
 
 echo '==== Offline Diagnostics downsampled ===='
-if ( -f $yr1.oceanD2_month.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month.nc
-  $script_dir/refineDiag_ocean_month.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.oceanD2_month.nc
+if ( -f $yr1.D2ocean_month.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.D2ocean_static.nc" $yr1.D2ocean_month.nc
+  $script_dir/refineDiag_ocean_month.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.D2ocean_month.nc
 endif
-if ( -f $yr1.oceanD2_month_z.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month_z.nc
-  $script_dir/refineDiag_ocean_month_z.py -b $basin_codes_d2_file -r $refineDiagDir -s ./ $yr1.oceanD2_month_z.nc
+if ( -f $yr1.D2ocean_month_z.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.D2ocean_static.nc" $yr1.D2ocean_month_z.nc
+  $script_dir/refineDiag_ocean_month_z.py -b $basin_codes_d2_file -r $refineDiagDir -s ./ $yr1.D2ocean_month_z.nc
 endif
-if ( -f $yr1.oceanD2_month_rho2.nc ) then
-  ncatted -a associated_files,global,c,c,"areacello: $yr1.oceanD2_static.nc" $yr1.oceanD2_month_rho2.nc
-  $script_dir/refineDiag_ocean_month_rho2.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.oceanD2_month_rho2.nc
+if ( -f $yr1.D2ocean_month_rho2.nc ) then
+  ncatted -a associated_files,global,c,c,"areacello: $yr1.D2ocean_static.nc" $yr1.D2ocean_month_rho2.nc
+  $script_dir/refineDiag_ocean_month_rho2.py -b $basin_codes_d2_file -r $refineDiagDir $yr1.D2ocean_month_rho2.nc
 endif
 
 
